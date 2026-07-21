@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { fetchUserProgress, upsertQuestionResult, fetchFlaggedQuestions, toggleFlagQuestion } from '../lib/supabase'
-import { buildSessionQueue } from '../lib/sessionLogic'
+import { buildSessionQueue, shuffleOptions } from '../lib/sessionLogic'
 import allQuestions from '../data/questions.json'
 import { X, ChevronRight, CheckCircle, XCircle, Lightbulb, Bookmark } from 'lucide-react'
 
@@ -32,7 +32,7 @@ export default function StudySession({ user, config, onComplete, onExit }) {
       if (mode === 'review') {
         // Review queue: only flagged questions, shuffled
         const flaggedQs = allQuestions.filter(q => (flaggedNumbers || [...flaggedSet]).includes(q.number))
-        q = [...flaggedQs].sort(() => Math.random() - 0.5)
+        q = [...flaggedQs].sort(() => Math.random() - 0.5).map(shuffleOptions)
       } else {
         q = buildSessionQueue(allQuestions, progress, count, topicFilter)
       }

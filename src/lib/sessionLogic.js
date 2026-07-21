@@ -15,6 +15,32 @@ function shuffle(arr) {
 }
 
 /**
+ * Shuffle a question's answer options and remap the correct answer letter.
+ * Returns a new question object — original is untouched.
+ */
+export function shuffleOptions(q) {
+  const labels = ['A', 'B', 'C', 'D', 'E'].slice(0, Object.keys(q.options).length)
+  const entries = Object.entries(q.options) // [['A', text], ['B', text], ...]
+
+  // Find which text is the correct answer
+  const correctText = q.options[q.answer]
+
+  // Shuffle entries
+  shuffle(entries)
+
+  // Rebuild options with new A/B/C/D labels
+  const newOptions = {}
+  let newAnswer = q.answer
+  entries.forEach(([, text], i) => {
+    const newLabel = labels[i]
+    newOptions[newLabel] = text
+    if (text === correctText) newAnswer = newLabel
+  })
+
+  return { ...q, options: newOptions, answer: newAnswer }
+}
+
+/**
  * Build session queue
  * @param {Array} allQuestions - full questions array
  * @param {Object} userProgress - map of question_number → { times_seen, times_correct }
@@ -54,7 +80,7 @@ export function buildSessionQueue(allQuestions, userProgress, count, topicFilter
 
   // Build queue: missed first, then unseen, then passing
   const queue = [...missed, ...unseen, ...passing];
-  return queue.slice(0, count);
+  return queue.slice(0, count).map(shuffleOptions);
 }
 
 /**
