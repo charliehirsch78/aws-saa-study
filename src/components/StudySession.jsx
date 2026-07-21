@@ -132,14 +132,6 @@ export default function StudySession({ user, config, onComplete, onExit }) {
         <div className="text-xs text-slate-500 hidden sm:block">
           {currentQ.topic}
         </div>
-
-        <button
-          onClick={handleToggleFlag}
-          title={flagged.has(currentQ.number) ? 'Remove from review queue' : 'Flag for review'}
-          className={`transition-colors shrink-0 ${flagged.has(currentQ.number) ? 'text-orange-400 hover:text-orange-300' : 'text-slate-500 hover:text-orange-400'}`}
-        >
-          <Bookmark className={`w-5 h-5 ${flagged.has(currentQ.number) ? 'fill-orange-400' : ''}`} />
-        </button>
       </header>
 
       {/* Question body */}
@@ -221,20 +213,34 @@ export default function StudySession({ user, config, onComplete, onExit }) {
         )}
       </main>
 
-      {/* Footer */}
-      {revealed && (
-        <div className="sticky bottom-0 bg-slate-800 border-t border-slate-700 px-4 py-4">
-          <div className="max-w-3xl mx-auto">
+      {/* Footer — always visible */}
+      <div className="sticky bottom-0 bg-slate-800 border-t border-slate-700 px-4 py-4">
+        <div className="max-w-3xl mx-auto flex gap-3">
+          {/* Flag button — always visible */}
+          <button
+            onClick={handleToggleFlag}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all shrink-0 ${
+              flagged.has(currentQ.number)
+                ? 'border-orange-500 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
+                : 'border-slate-600 bg-slate-700 text-slate-300 hover:border-orange-400 hover:text-orange-400'
+            }`}
+          >
+            <Bookmark className={`w-4 h-4 ${flagged.has(currentQ.number) ? 'fill-orange-400' : ''}`} />
+            {flagged.has(currentQ.number) ? 'Flagged' : 'Flag for Review'}
+          </button>
+
+          {/* Next button — only after answering */}
+          {revealed && (
             <button
               onClick={handleNext}
-              className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-semibold py-3 rounded-xl transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-semibold py-3 rounded-xl transition-colors"
             >
               {currentIdx + 1 >= queue.length ? 'View Results' : 'Next Question'}
               <ChevronRight className="w-5 h-5" />
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
