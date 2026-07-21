@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchUserProgress, upsertQuestionResult } from '../lib/supabase'
+import { fetchUserProgress, upsertQuestionResult, fetchFlaggedQuestions, toggleFlagQuestion } from '../lib/supabase'
 import { buildSessionQueue } from '../lib/sessionLogic'
 import allQuestions from '../data/questions.json'
-import { X, ChevronRight, CheckCircle, XCircle, Lightbulb } from 'lucide-react'
+import { X, ChevronRight, CheckCircle, XCircle, Lightbulb, Bookmark } from 'lucide-react'
 
 const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E']
 
 export default function StudySession({ user, config, onComplete, onExit }) {
-  const { count, topicFilter } = config
+  const { count, topicFilter, mode, flaggedNumbers } = config
 
   const [queue, setQueue] = useState([])
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -15,18 +15,46 @@ export default function StudySession({ user, config, onComplete, onExit }) {
   const [revealed, setRevealed] = useState(false)
   const [results, setResults] = useState([])           // { question, selected, correct }
   const [loading, setLoading] = useState(true)
+  const [flagged, setFlagged] = useState(new Set())   // question numbers flagged for review
   const startedAt = useRef(new Date().toISOString())
 
   useEffect(() => {
     async function init() {
-      const progRes = await fetchUserProgress(user.id)
+      const [progRes, flagRes] = await Promise.all([
+        fetchUserProgress(user.id),
+        fetchFlaggedQuestions(user.id),
+      ])
       const progress = progRes.success ? progRes.data : {}
-      const q = buildSessionQueue(allQuestions, progress, count, topicFilter)
+      const flaggedSet = flagRes.success ? flagRes.data : new Set()
+      setFlagged(flaggedSet)
+
+      let q
+      if (mode === 'review') {
+        // Review queue: only flagged questions, shuffled
+        const flaggedQs = allQuestions.filter(q => (flaggedNumbers || [...flaggedSet]).includes(q.number))
+        q = [...flaggedQs].sort(() => Math.random() - 0.5)
+      } else {
+        q = buildSessionQueue(allQuestions, progress, count, topicFilter)
+      }
       setQueue(q)
       setLoading(false)
     }
     init()
-  }, [user.id, count, topicFilter])
+  }, [user.id, count, topicFilter, mode])
+
+  const handleToggleFlag = async () => {
+    if (!currentQ) return
+    const qNum = currentQ.number
+    const isFlagged = flagged.has(qNum)
+    // Optimistic update
+    setFlagged(prev => {
+      const next = new Set(prev)
+      if (isFlagged) next.delete(qNum)
+      else next.add(qNum)
+      return next
+    })
+    await toggleFlagQuestion(user.id, qNum, isFlagged)
+  }
 
   const currentQ = queue[currentIdx]
   const isCorrect = selected && currentQ && selected === currentQ.answer
@@ -104,6 +132,14 @@ export default function StudySession({ user, config, onComplete, onExit }) {
         <div className="text-xs text-slate-500 hidden sm:block">
           {currentQ.topic}
         </div>
+
+        <button
+          onClick={handleToggleFlag}
+          title={flagged.has(currentQ.number) ? 'Remove from review queue' : 'Flag for review'}
+          className={`transition-colors shrink-0 ${flagged.has(currentQ.number) ? 'text-orange-400 hover:text-orange-300' : 'text-slate-500 hover:text-orange-400'}`}
+        >
+          <Bookmark className={`w-5 h-5 ${flagged.has(currentQ.number) ? 'fill-orange-400' : ''}`} />
+        </button>
       </header>
 
       {/* Question body */}

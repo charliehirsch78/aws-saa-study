@@ -18,6 +18,17 @@ import { createClient } from '@supabase/supabase-js'
  * create policy "Users manage own progress" on user_question_progress
  *   for all using (auth.uid() = user_id);
  *
+ * create table if not exists flagged_questions (
+ *   id uuid primary key default gen_random_uuid(),
+ *   user_id uuid references auth.users not null,
+ *   question_number int not null,
+ *   flagged_at timestamptz default now(),
+ *   unique(user_id, question_number)
+ * );
+ * alter table flagged_questions enable row level security;
+ * create policy "Users manage own flags" on flagged_questions
+ *   for all using (auth.uid() = user_id);
+ *
  * create table if not exists study_sessions (
  *   id uuid primary key default gen_random_uuid(),
  *   user_id uuid references auth.users not null,
@@ -187,5 +198,46 @@ export const fetchRecentSessions = async (userId, limit = 5) => {
     return { success: true, data: data || [] }
   } catch (error) {
     return { success: false, error: error.message, data: [] }
+  }
+}
+
+// ========== FLAGGED QUESTIONS ==========
+
+// Returns a Set of flagged question numbers
+export const fetchFlaggedQuestions = async (userId) => {
+  if (!supabase) return { success: false, error: 'Not configured', data: new Set() }
+  try {
+    const { data, error } = await supabase
+      .from('flagged_questions')
+      .select('question_number')
+      .eq('user_id', userId)
+    if (error) throw error
+    const flagged = new Set(data?.map(r => r.question_number) || [])
+    return { success: true, data: flagged }
+  } catch (error) {
+    return { success: false, error: error.message, data: new Set() }
+  }
+}
+
+// Toggle flag: insert if not flagged, delete if flagged
+export const toggleFlagQuestion = async (userId, questionNumber, currentlyFlagged) => {
+  if (!supabase) return { success: false, error: 'Not configured' }
+  try {
+    if (currentlyFlagged) {
+      const { error } = await supabase
+        .from('flagged_questions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('question_number', questionNumber)
+      if (error) throw error
+    } else {
+      const { error } = await supabase
+        .from('flagged_questions')
+        .insert({ user_id: userId, question_number: questionNumber })
+      if (error) throw error
+    }
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
   }
 }

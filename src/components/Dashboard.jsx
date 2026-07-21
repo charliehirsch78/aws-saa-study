@@ -1,23 +1,26 @@
 import { useState, useEffect } from 'react'
-import { fetchUserProgress, fetchRecentSessions, signOut } from '../lib/supabase'
+import { fetchUserProgress, fetchRecentSessions, fetchFlaggedQuestions, signOut } from '../lib/supabase'
 import { getCompletionStats, getTopicBreakdown } from '../lib/sessionLogic'
 import allQuestions from '../data/questions.json'
-import { BarChart2, PlayCircle, LogOut, CheckCircle, Target, Clock } from 'lucide-react'
+import { BarChart2, PlayCircle, LogOut, CheckCircle, Target, Clock, Bookmark } from 'lucide-react'
 
-export default function Dashboard({ user, onStartSetup, onSignOut }) {
+export default function Dashboard({ user, onStartSetup, onStartReview, onSignOut }) {
   const [progress, setProgress] = useState({})
   const [sessions, setSessions] = useState([])
+  const [flagged, setFlagged] = useState(new Set())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const [progRes, sessRes] = await Promise.all([
+      const [progRes, sessRes, flagRes] = await Promise.all([
         fetchUserProgress(user.id),
         fetchRecentSessions(user.id, 5),
+        fetchFlaggedQuestions(user.id),
       ])
       if (progRes.success) setProgress(progRes.data)
       if (sessRes.success) setSessions(sessRes.data)
+      if (flagRes.success) setFlagged(flagRes.data)
       setLoading(false)
     }
     load()
@@ -109,7 +112,7 @@ export default function Dashboard({ user, onStartSetup, onSignOut }) {
             </div>
 
             {/* Start session CTA */}
-            <div className="bg-gradient-to-r from-orange-600 to-orange-500 rounded-xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-gradient-to-r from-orange-600 to-orange-500 rounded-xl p-6 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <div className="font-bold text-lg">Ready to study?</div>
                 <div className="text-orange-100 text-sm mt-0.5">
@@ -124,6 +127,35 @@ export default function Dashboard({ user, onStartSetup, onSignOut }) {
               >
                 <PlayCircle className="w-5 h-5" />
                 Start Session
+              </button>
+            </div>
+
+            {/* Review Queue CTA */}
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
+                  <Bookmark className={`w-5 h-5 ${flagged.size > 0 ? 'text-orange-400 fill-orange-400' : 'text-slate-400'}`} />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">Review Queue</div>
+                  <div className="text-slate-400 text-xs mt-0.5">
+                    {flagged.size === 0
+                      ? 'No questions flagged yet — bookmark questions during a session'
+                      : `${flagged.size} question${flagged.size !== 1 ? 's' : ''} flagged for review`}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => onStartReview([...flagged])}
+                disabled={flagged.size === 0}
+                className={`flex items-center gap-2 font-semibold px-5 py-2 rounded-lg transition-colors whitespace-nowrap text-sm ${
+                  flagged.size > 0
+                    ? 'bg-orange-500 hover:bg-orange-400 text-white'
+                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                <Bookmark className="w-4 h-4" />
+                Review {flagged.size > 0 ? `(${flagged.size})` : ''}
               </button>
             </div>
 

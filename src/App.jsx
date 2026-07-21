@@ -106,6 +106,10 @@ VITE_SUPABASE_ANON_KEY=your_key`}
     <Dashboard
       user={user}
       onStartSetup={() => setView('setup')}
+      onStartReview={(flaggedNumbers) => {
+        setSessionConfig({ mode: 'review', flaggedNumbers })
+        setView('session')
+      }}
       onSignOut={() => setUser(null)}
     />
   )
